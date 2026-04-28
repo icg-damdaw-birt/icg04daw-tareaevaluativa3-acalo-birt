@@ -291,6 +291,90 @@ describe('API Service - Autenticación', () => {
   });
 });
 
+// ==========================================
+// GRUPO: toggleFavorite
+// ==========================================
+describe('API Service - toggleFavorite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock.clear();
+    authToken.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('debería llamar a PATCH /api/movies/:id/favorite con Authorization', async () => {
+    // ARRANGE
+    const token = 'valid-token';
+    authToken.set(token);
+    const movieId = '1';
+    const updatedMovie = { id: '1', title: 'Inception', director: 'Nolan', year: 2010, isFavorite: true };
+
+    (globalThis.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) => name === 'content-type' ? 'application/json' : null
+      },
+      json: async () => updatedMovie
+    });
+
+    // ACT
+    const result = await api.toggleFavorite(movieId);
+
+    // ASSERT
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const callArgs = (globalThis.fetch as any).mock.calls[0];
+    expect(callArgs[0]).toBe(`http://localhost:3000/api/movies/${movieId}/favorite`);
+    expect(callArgs[1].method).toBe('PATCH');
+    expect(callArgs[1].body).toBeUndefined();
+    const headers = callArgs[1].headers as Headers;
+    expect(headers.get('Authorization')).toBe(`Bearer ${token}`);
+    expect(result).toEqual(updatedMovie);
+  });
+
+  it('debería lanzar ApiError si la película no existe (404)', async () => {
+    // ARRANGE
+    authToken.set('valid-token');
+
+    (globalThis.fetch as any).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: {
+        get: (name: string) => name === 'content-type' ? 'application/json' : null
+      },
+      json: async () => ({ error: 'Película no encontrada' })
+    });
+
+    // ACT & ASSERT
+    try {
+      await api.toggleFavorite('999');
+      expect(true).toBe(false);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(404);
+      expect((error as ApiError).message).toBe('Película no encontrada');
+    }
+  });
+
+  it('debería manejar errores de red', async () => {
+    // ARRANGE
+    authToken.set('valid-token');
+    (globalThis.fetch as any).mockRejectedValueOnce(new Error('Failed to fetch'));
+
+    // ACT & ASSERT
+    try {
+      await api.toggleFavorite('1');
+      expect(true).toBe(false);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).message).toBe('No se pudo conectar con el servidor.');
+    }
+  });
+});
+
 /**
  * NOTAS PARA ESTUDIANTES:
  * 

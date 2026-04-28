@@ -17,6 +17,7 @@ vi.mock('./api.service', () => ({
     createMovie: vi.fn(),
     updateMovie: vi.fn(),
     deleteMovie: vi.fn(),
+    toggleFavorite: vi.fn(),
   }
 }));
 
@@ -218,6 +219,52 @@ describe('Movies Store (Svelte 5 Runes)', () => {
 
       expect(ok).toBe(false);
       expect(moviesStore.error).toBe('Forbidden');
+      expect(moviesStore.mutating).toBe(false);
+    });
+  });
+
+  // ─── toggleFavorite ─────────────────────────────────────────────────────────
+  describe('toggleFavorite()', () => {
+    it('debería invertir isFavorite en el store', async () => {
+      // ARRANGE
+      const moviesWithFavorite: Movie[] = [
+        { id: '1', title: 'Inception', director: 'Christopher Nolan', year: 2010, isFavorite: false },
+        { id: '2', title: 'The Matrix', director: 'Wachowski Sisters', year: 1999, isFavorite: false },
+      ];
+      vi.mocked(api.getMovies).mockResolvedValue([...moviesWithFavorite]);
+      await moviesStore.loadMovies();
+
+      const toggled: Movie = { ...moviesWithFavorite[0], isFavorite: true };
+      vi.mocked(api.toggleFavorite).mockResolvedValue(toggled);
+
+      // ACT
+      const ok = await moviesStore.toggleFavorite('1');
+
+      // ASSERT
+      expect(api.toggleFavorite).toHaveBeenCalledWith('1');
+      expect(ok).toBe(true);
+      expect(moviesStore.movies.find(m => m.id === '1')?.isFavorite).toBe(true);
+    });
+
+    it('no debería cambiar el número de películas al hacer toggle', async () => {
+      vi.mocked(api.getMovies).mockResolvedValue([...mockMovies]);
+      await moviesStore.loadMovies();
+      const initialCount = moviesStore.movies.length;
+
+      const toggled: Movie = { ...mockMovies[0], isFavorite: true };
+      vi.mocked(api.toggleFavorite).mockResolvedValue(toggled);
+      await moviesStore.toggleFavorite('1');
+
+      expect(moviesStore.movies.length).toBe(initialCount);
+    });
+
+    it('debería manejar error al hacer toggle de favorito', async () => {
+      vi.mocked(api.toggleFavorite).mockRejectedValue(new Error('Película no encontrada'));
+
+      const ok = await moviesStore.toggleFavorite('999');
+
+      expect(ok).toBe(false);
+      expect(moviesStore.error).toBe('Película no encontrada');
       expect(moviesStore.mutating).toBe(false);
     });
   });

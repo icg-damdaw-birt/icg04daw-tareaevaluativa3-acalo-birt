@@ -94,5 +94,21 @@ export const moviesStore = {
   // Limpiar solo el error
   clearError() {
     error = null;
+  },
+
+  // Toggle favorito
+  async toggleFavorite(id: string): Promise<boolean> {
+    mutating = true;
+    error = null;
+    try {
+      const updatedMovie = await api.toggleFavorite(id);
+      movies = movies.map(m => m.id === id ? updatedMovie : m);
+      return true;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Error al actualizar favorito';
+      return false;
+    } finally {
+      mutating = false;
+    }
   }
 };
