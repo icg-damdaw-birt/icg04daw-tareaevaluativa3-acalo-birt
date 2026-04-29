@@ -110,5 +110,25 @@ export const moviesStore = {
     } finally {
       mutating = false;
     }
+  },
+
+  // Actualizar valoración con optimistic update + rollback
+  async rateMovie(movie: Movie, rating: number): Promise<boolean> {
+    if (!Number.isInteger(rating) || rating < 0 || rating > 5) {
+      error = 'El rating debe ser un número entero entre 0 y 5';
+      return false;
+    }
+
+    const previousRating = movie.rating;
+    movie.rating = rating; // Optimistic update: Svelte 5 reacciona al cambiar la propiedad
+
+    try {
+      await api.rateMovie(movie.id, rating);
+      return true;
+    } catch (err) {
+      movie.rating = previousRating; // Rollback si la API falla
+      error = err instanceof Error ? err.message : 'Error al actualizar la valoración';
+      return false;
+    }
   }
 };
