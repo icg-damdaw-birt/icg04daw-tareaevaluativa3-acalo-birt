@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
   import type { Movie } from '$lib/types';
+  import { moviesStore } from '$lib';
 
   // Props con Svelte 5: sistema de tipos explícito y callbacks en lugar de eventos
   let { 
@@ -61,6 +62,18 @@
       {#if movie.year}
         <span>Año: {movie.year}</span>
       {/if}
+    </div>
+
+    <!-- Selector de valoración (0–5 estrellas) -->
+    <div class="flex gap-1">
+      {#each [1, 2, 3, 4, 5] as star}
+        <button
+          type="button"
+          class={`text-xl transition ${star <= (movie.rating ?? 0) ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-300`}
+          onclick={() => moviesStore.rateMovie(movie, star)}
+          aria-label={`Valorar con ${star} estrellas`}
+        >{star <= (movie.rating ?? 0) ? '★' : '☆'}</button>
+      {/each}
     </div>
 
     {#if showActions}

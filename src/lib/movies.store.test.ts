@@ -18,6 +18,7 @@ vi.mock('./api.service', () => ({
     updateMovie: vi.fn(),
     deleteMovie: vi.fn(),
     toggleFavorite: vi.fn(),
+    rateMovie: vi.fn(),
   }
 }));
 
@@ -266,6 +267,63 @@ describe('Movies Store (Svelte 5 Runes)', () => {
       expect(ok).toBe(false);
       expect(moviesStore.error).toBe('Película no encontrada');
       expect(moviesStore.mutating).toBe(false);
+    });
+  });
+
+  // ─── rateMovie ────────────────────────────────────────────
+  describe('rateMovie()', () => {
+    it('debería actualizar el rating de la película (camino feliz)', async () => {
+      // ARRANGE
+      const movieWithoutRating: Movie = { id: '1', title: 'Inception', director: 'Nolan', year: 2010 };
+      vi.mocked(api.getMovies).mockResolvedValue([movieWithoutRating]);
+      await moviesStore.loadMovies();
+
+      const movie = moviesStore.movies[0];
+      const ratedMovie: Movie = { ...movieWithoutRating, rating: 4 };
+      vi.mocked(api.rateMovie).mockResolvedValue(ratedMovie);
+
+      // ACT
+      const ok = await moviesStore.rateMovie(movie, 4);
+
+      // ASSERT
+      expect(ok).toBe(true);
+      expect(movie.rating).toBe(4);
+      expect(api.rateMovie).toHaveBeenCalledWith('1', 4);
+    });
+
+    it('debería rechazar un rating inválido sin llamar a la API', async () => {
+      // ARRANGE
+      const movie: Movie = { id: '1', title: 'Inception', director: 'Nolan', year: 2010, rating: 3 };
+      vi.mocked(api.getMovies).mockResolvedValue([movie]);
+      await moviesStore.loadMovies();
+
+      const targetMovie = moviesStore.movies[0];
+
+      // ACT
+      const ok = await moviesStore.rateMovie(targetMovie, 6);
+
+      // ASSERT
+      expect(ok).toBe(false);
+      expect(api.rateMovie).not.toHaveBeenCalled();
+      expect(moviesStore.error).toBe('El rating debe ser un número entero entre 0 y 5');
+    });
+
+    it('debería hacer rollback al rating anterior si la API falla', async () => {
+      // ARRANGE
+      const movieWithRating: Movie = { id: '1', title: 'Inception', director: 'Nolan', year: 2010, rating: 2 };
+      vi.mocked(api.getMovies).mockResolvedValue([movieWithRating]);
+      await moviesStore.loadMovies();
+
+      const movie = moviesStore.movies[0];
+      vi.mocked(api.rateMovie).mockRejectedValue(new Error('Error de red'));
+
+      // ACT
+      const ok = await moviesStore.rateMovie(movie, 5);
+
+      // ASSERT
+      expect(ok).toBe(false);
+      expect(movie.rating).toBe(2); // Rollback al valor anterior
+      expect(moviesStore.error).toBe('Error de red');
     });
   });
 });
